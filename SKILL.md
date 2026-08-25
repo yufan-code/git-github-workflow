@@ -38,7 +38,9 @@ git commit -m "Initial commit"
 
 `git status` 這一步不是形式,是避免密鑰外洩的最後防線 —— commit 之後歷史紀錄很難徹底清乾淨,務必在 commit 前檢查一次。
 
-## 階段四:在 GitHub 建立遠端 repo
+## 階段四:在 GitHub 建立遠端 repo(務必先手動建立,再 push)
+
+**先在 GitHub 網頁手動建好空的 repo,再進行下一步的 push**,不要依賴 `gh repo create ... --push` 一步到位 —— 這個指令需要 token 具備「建立新 repository」的帳號層級權限(fine-grained PAT 的 Account permissions → Administration),但多數情境下(尤其是別人給的、或先前建立的 fine-grained token)並沒有開這項權限,實測會直接失敗於 `Resource not accessible by personal access token (createRepository)`。手動在網頁建立可以完全避開這個問題。
 
 1. 登入 [github.com](https://github.com),右上角 `+` → `New repository`。
 2. 填寫 repo 名稱,選擇 Public 或 Private。
@@ -46,7 +48,7 @@ git commit -m "Initial commit"
 4. 建立後會拿到遠端網址,例如:
    `https://github.com/<帳號或組織>/my-project.git`
 
-也可以用 GitHub CLI 一步建立並推送(需先 `gh auth login`):
+只有在確定目前登入的 token/帳號有帳號層級的 repo 建立權限(例如透過 `gh auth login` 瀏覽器登入,而非 fine-grained PAT)時,才可以省略手動建立這一步,改用一步到位的指令:
 
 ```bash
 gh repo create <帳號或組織>/my-project --public --source=. --remote=origin --push
@@ -64,7 +66,7 @@ git push -u origin main
 - 第一次推送若需要身分驗證,建議用 `gh auth login`,或使用 Personal Access Token 取代密碼(GitHub 已不支援帳密登入 push)。
 - 常見錯誤與對應:
   - `Repository not found` → 通常是網址打錯、repo 是 private 但目前登入帳號沒有權限,或 gh 認證的帳號不是 repo 擁有者。
-  - `Write access to repository not granted` → 目前認證的 GitHub 帳號沒有寫入權限,需要換帳號登入或請對方加協作者。
+  - `Permission ... denied` / `Write access to repository not granted`(HTTP 403)→ 即使 `gh api repos/<owner>/<repo> --jq .permissions` 顯示 `push: true`,實際推送仍可能被拒,因為那個欄位反映的是**帳號**在該 repo 的角色,不是**token 本身**的授權範圍。fine-grained PAT 常見兩個坑:(1) repo 是新建的,還沒被加進 token 的 Repository access 清單;(2) Permissions → Contents 停留在預設的 Read-only。到 `github.com/settings/tokens?type=beta` 把目標 repo 加入清單、Contents 改成 Read and write,存檔立即生效,不用重新產生 token,改完直接重試 push 即可。
   - `failed to push...fetch first` → 遠端有本機沒有的 commit(例如遠端建立時勾了自動產生檔案),先 `git pull --rebase origin main` 再 push。
 
 ## 階段六:日常開發流程
